@@ -1,9 +1,16 @@
 
 #include <Wire.h>
 #include <LiquidCrystal.h>
-#include <ThreeWire.h>
-#include <RtcDS1302.h>
-#include <Keypad.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <LiquidCrystal.h>
+#include <Keypad.h> 
+
+
+const char* ssid = "..";
+const char* password = "..";
+const char* host = "tr7v02f635.execute-api.ap-northeast-2.amazonaws.com";
+const char* path = "/dev/sms";
 
 const byte ROWS = 4;
 const byte COLs = 3;
@@ -29,6 +36,19 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   mySerial.begin(9600);
+  WiFi.begin(ssid,password);
+
+  while(WiFi.status() != WL_CONNECTED){
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+
+  Serial.println("Connected to WiFi!");
+
+  lcd.begin(16,2);
+  lcd.print("Phone Number");
+  lcd.setCursor(0,1);
+  lcd.print("Time:");
 }
 
 void loop() {
@@ -42,7 +62,7 @@ void loop() {
     else if(key == '#'){
       String url = "https://tr7v02f635.execute-api.ap-northeast-2.amazonaws.com/dev/sms?phoneNumber=" + phoneNumber;
       url += "&time=" + time;
-      mySerial.println("AT+
+      mySerial
     }
     else if(phoneNumber.length()<11){
       phoneNumber += key;
