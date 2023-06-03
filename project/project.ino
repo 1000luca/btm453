@@ -1,17 +1,21 @@
-
-// #include <Wire.h>
-#include <LiquidCrystal.h>
-#include <LiquidCrystal_I2C.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 #include <Keypad.h> 
 #include "RTClib.h"
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+
+#define STA
+#define I2C_SDA 21
+#define I2C_SCL 20
 
 unsigned long seconds = 1000L; //Notice the L 
 unsigned long minutes = seconds * 60;
 
-const char* ssid = "..";
-const char* password = "..";
+const char* ssid = "Admin";
+const char* password = "12345678";
 String host = "https://www.tr7v02f635.execute-api.ap-northeast-2.amazonaws.com";
 String path = "/dev/sms";
 
@@ -27,24 +31,22 @@ byte rowPins[ROWS] = {9,8,7,6};
 byte colPins[COLS] = {5,4,3,2};
 
 Keypad keypad = Keypad(makeKeymap(keys),rowPins,colPins,ROWS,COLS);
-// SoftwareSerial mySerial(10,11);
 
 String phoneNumber = "";
 String timeString = "";
 int timeInt = 0;
-
+// Wire.begin(I2C_SDA, I2C_SCL);
 LiquidCrystal_I2C lcd(0x27,16,2);
-
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
   Serial.begin(115200);
-  // mySerial.begin(9600);
   WiFi.begin(ssid,password);
 
   while(WiFi.status() != WL_CONNECTED){
+    // WiFi.begin(ssid,password);
     delay(1000);
     Serial.println("Connecting to WiFi...");
   }
@@ -52,12 +54,14 @@ void setup() {
   Serial.println("Connected to WiFi!");
   Serial.println(WiFi.localIP());
 
-  lcd.begin(16,2);
+  lcd.init();
   lcd.backlight();
   lcd.setCursor(0,0);
   lcd.print("Welcome!");
   lcd.setCursor(0,1);
   lcd.print("phone number:   ");
+  Serial.println();
+
 }
 
 
@@ -73,10 +77,11 @@ enum State state = Start;
 
 int sendRequest(String phoneNumber){
   if(WiFi.status() == WL_CONNECTED){
+    WiFiClient client;
     HTTPClient http;
     String url = host + path + "?phoneNumber=" + phoneNumber;
     Serial.println(url);
-    http.begin(url.c_str());
+    http.begin(client, url.c_str());
 
     int httpResponseCode = http.GET();
     if(httpResponseCode > 0){
@@ -99,8 +104,10 @@ int sendRequest(String phoneNumber){
 }
 
 void loop() {
+  // Serial.println("I'm alive");
   // put your main code here, to run repeatedly:
   char key = keypad.getKey();
+  // Serial.println(key);
   if(key != NO_KEY){
     Serial.println(key);
     switch(state){
