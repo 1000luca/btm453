@@ -1,22 +1,20 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
+// #include <ESP8266WiFi.h>
+// #include <ESP8266HTTPClient.h>
+// #include <WiFiClient.h>
 #include <Keypad.h> 
 #include "RTClib.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
 
-
-#define STA
-#define I2C_SDA 21
-#define I2C_SCL 20
+SoftwareSerial mySerial(2,3); //RX,TX
 
 unsigned long seconds = 1000L; //Notice the L 
 unsigned long minutes = seconds * 60;
 
-const char* ssid = "Admin";
-const char* password = "12345678";
-String host = "https://www.tr7v02f635.execute-api.ap-northeast-2.amazonaws.com";
+String ssid = "Admin";
+String password = "12345678";
+String host = "13.209.26.8";
 String path = "/dev/sms";
 
 const byte ROWS = 4;
@@ -27,8 +25,8 @@ char keys[ROWS][COLS] = {
   {'7','8','9','C'},
   {'*','0','#','D'}
 };
-byte rowPins[ROWS] = {9,8,7,6};
-byte colPins[COLS] = {5,4,3,2};
+byte rowPins[ROWS] = {11,10,9,8};
+byte colPins[COLS] = {7,6,5,4};
 
 Keypad keypad = Keypad(makeKeymap(keys),rowPins,colPins,ROWS,COLS);
 
@@ -38,21 +36,43 @@ int timeInt = 0;
 // Wire.begin(I2C_SDA, I2C_SCL);
 LiquidCrystal_I2C lcd(0x27,16,2);
 
+void connectWifi(){
+  String join ="AT+CWJAP=\""+ssid+"\",\""+password+"\"";
+      
+  Serial.println("Connect Wifi...");
+  Serial.println(join);
+  mySerial.println(join);
+
+  // while(1){
+  //   if(mySerial.available())
+  //   {
+  //     Serial.write(mySerial.read());
+  //   }
+  //   if(Serial.available())
+  //   {
+  //     mySerial.write(Serial.read());
+  //   }
+  // }
+  delay(10000);
+  // Serial.println(mySerial.read());
+  if(mySerial.find("WIFI CONNECTED"))
+  {
+    Serial.print("WIFI connect\n");
+  }else
+  {
+   Serial.println("connect timeout\n");
+  }
+  delay(1000);
+}
+
+
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  mySerial.begin(9600);
 
-  Serial.begin(115200);
-  WiFi.begin(ssid,password);
-
-  while(WiFi.status() != WL_CONNECTED){
-    // WiFi.begin(ssid,password);
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
-
-  Serial.println("Connected to WiFi!");
-  Serial.println(WiFi.localIP());
+  connectWifi();
 
   lcd.init();
   lcd.backlight();
@@ -63,6 +83,41 @@ void setup() {
   Serial.println();
 
 }
+
+int httpclient(String phoneNumber){
+  delay(100);
+  Serial.println("connect TCP...");
+  mySerial.println("AT+CIPSTART=\"TCP\",\""+host+"\",3000");
+  delay(500);
+  if(Serial.find("ERROR")) return 0;
+  
+  Serial.println("Send data...");
+  // String url = host + path + "?phoneNumber=" +"82"+ phoneNumber;
+  String cmd = "GET /sms?phoneNumber=82" + phoneNumber + " HTTP/1.0\r\n\r\n";
+  mySerial.print("AT+CIPSEND=");
+  mySerial.println(cmd.length());
+  Serial.print("AT+CIPSEND=");
+  Serial.println(cmd.length());
+  if(mySerial.find("OK"))
+  {
+    Serial.print(">");
+  }else
+  {
+    mySerial.println("AT+CIPCLOSE");
+    Serial.println("connect timeout");
+    delay(1000);
+    return 0;
+  }
+  delay(500);
+       
+  mySerial.println(cmd);
+  Serial.println(cmd);
+  delay(100);
+  if(Serial.find("ERROR")) return 0;
+  mySerial.println("AT+CIPCLOSE");
+  delay(100);
+}  
+
 
 
 enum State{
@@ -75,33 +130,33 @@ enum State{
 enum State state = Start;
 
 
-int sendRequest(String phoneNumber){
-  if(WiFi.status() == WL_CONNECTED){
-    WiFiClient client;
-    HTTPClient http;
-    String url = host + path + "?phoneNumber=" + phoneNumber;
-    Serial.println(url);
-    http.begin(client, url.c_str());
+// int sendRequest(String phoneNumber){
+//   if(WiFi.status() == WL_CONNECTED){
+//     WiFiClient client;
+//     HTTPClient http;
+//     String url = host + path + "?phoneNumber=" + phoneNumber;
+//     Serial.println(url);
+//     http.begin(client, url.c_str());
 
-    int httpResponseCode = http.GET();
-    if(httpResponseCode > 0){
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
-      String payload = http.getString();
-      Serial.println(payload);
-      http.end();
-      return 1;
-    }else {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-      http.end();
-      return -1;
-    }
-  }else{
-    Serial.println("WiFi Disconnected");
-    return -1;
-  }
-}
+//     int httpResponseCode = http.GET();
+//     if(httpResponseCode > 0){
+//       Serial.print("HTTP Response code: ");
+//       Serial.println(httpResponseCode);
+//       String payload = http.getString();
+//       Serial.println(payload);
+//       http.end();
+//       return 1;
+//     }else {
+//       Serial.print("Error code: ");
+//       Serial.println(httpResponseCode);
+//       http.end();
+//       return -1;
+//     }
+//   }else{
+//     Serial.println("WiFi Disconnected");
+//     return -1;
+//   }
+// }
 
 void loop() {
   // Serial.println("I'm alive");
@@ -247,7 +302,7 @@ void loop() {
         unsigned long t = (unsigned long) timeInt;
         delay(t * minutes);
         // send
-        if(sendRequest(phoneNumber)){
+        if(httpclient(phoneNumber)){
           lcd.clear();
           lcd.setCursor(0,0);
           lcd.print("SMS Send");
