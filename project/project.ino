@@ -14,7 +14,7 @@ unsigned long minutes = seconds * 60;
 
 String ssid = "Admin";
 String password = "12345678";
-String host = "13.209.26.8";
+String host = "3.39.234.65";
 String path = "/dev/sms";
 
 const byte ROWS = 4;
@@ -36,9 +36,11 @@ int timeInt = 0;
 // Wire.begin(I2C_SDA, I2C_SCL);
 LiquidCrystal_I2C lcd(0x27,16,2);
 
-void connectWifi(){
+int connectWifi(){
   String join ="AT+CWJAP=\""+ssid+"\",\""+password+"\"";
-      
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Connect Wifi...");
   Serial.println("Connect Wifi...");
   Serial.println(join);
   mySerial.println(join);
@@ -58,11 +60,20 @@ void connectWifi(){
   if(mySerial.find("WIFI CONNECTED"))
   {
     Serial.print("WIFI connect\n");
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("WIFI connect");
+    delay(5000);
+    return 1;
   }else
   {
-   Serial.println("connect timeout\n");
+   Serial.println("connect timeout\n");   
+   lcd.clear(); 
+   lcd.setCursor(0,0);
+   lcd.print("connect timeout");
+   delay(5000);
+   return 0;
   }
-  delay(1000);
 }
 
 
@@ -71,11 +82,13 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   mySerial.begin(9600);
-
-  connectWifi();
-
   lcd.init();
   lcd.backlight();
+
+  while(1){
+    if(connectWifi()) break;
+  }
+  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Welcome!");
   lcd.setCursor(0,1);
